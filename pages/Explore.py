@@ -5,7 +5,7 @@ st.set_page_config(page_title="Explore Data", page_icon="🔍", layout="wide")
 st.title("🔍 Explore Your Dataset")
 
 st.sidebar.title("Actions")
-st.sidebar.page_link("main.py", label="Home", icon="🏠")
+st.sidebar.page_link("main.py", label="Home", icon="🏠") # تغيير الأيقونة للمنزل
 st.sidebar.page_link("pages/Explore.py", label="Explore Data", icon="🔍")
 st.sidebar.page_link("pages/Clean.py", label="Clean Data ", icon="🧼")
 st.sidebar.page_link("pages/Transform.py", label="Transform Columns", icon="🔀",disabled=True)
@@ -32,7 +32,7 @@ elif "uploaded_file" in st.session_state:
         else:
             st.error("⚠️ Unsupported file format.")
             st.stop()
-        st.success("✅ Original dataset loaded successfully for exploration.")
+        #st.success("✅ Original dataset loaded successfully for exploration.")
 
     except Exception as e:
         st.error(f"❌ Error reading file: {e}")

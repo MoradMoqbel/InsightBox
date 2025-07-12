@@ -26,6 +26,7 @@ st.sidebar.page_link("pages/Visualization.py", label="Data Visualization", icon=
 st.sidebar.page_link("pages/Prediction.py", label="Prediction", icon="🤖", disabled=True)
 st.sidebar.page_link("pages/Report.py", label="Generate Report", icon="📄",disabled=True)
 
+
 # --- 1. Initialize and Manage DataFrame in Session State ---
 # This block ensures the DataFrame persists across interactions and loads from uploaded file.
 
@@ -74,20 +75,27 @@ if 'df' not in st.session_state or st.session_state.df.empty:
 
 # Always use the DataFrame from session_state for the rest of the app
 df = st.session_state.df
-
+new_df = None
 # --- 2. Choose an operation ---
 
 select_operation = st.radio("Which data you would like to handle? ",
-        ["Missing data"],
+        ["Missing data","Duplicated data","Text normalization","Edit records"],
         horizontal=True) 
 
+
+
+
+
+
+
+# --- Missing Data Handling ---
 if select_operation == "Missing data":
     # --- 3. Missing Values Summary ---
     count_of_missing = df.isnull().sum().sum()
     st.header("Handle missing data") 
     st.subheader("🕳️ Summary of missing data")
     if count_of_missing > 0:
-         st.caption(f"This dataset has {count_of_missing} rows of missing values distributed as:")
+        st.caption(f"This dataset has {count_of_missing} rows of missing values distributed as:")
     missing_df = df.isnull().sum().reset_index()
     missing_df.columns = ["Column", "Missing Values"]
     missing_df = missing_df[missing_df["Missing Values"] > 0]
@@ -102,9 +110,9 @@ if select_operation == "Missing data":
         cleaning_option = st.radio(
             "Choose a strategy:", # Choose a strategy:
             ["❌ Drop rows with missing values", # Drop rows with missing values
-            "🔧 Fill columns with (mean / median / zero) value (Only for the numarical ones)", # Fill numeric columns (mean / median / zero)
-            "📊 Fill columns with the most frequent value (Only for the categorical ones)",
-            "✏️ Fill manually with a custom value"], # Fill manually with a custom value
+             "🔧 Fill columns with (mean / median / zero) value (Only for the numarical ones)", # Fill numeric columns (mean / median / zero)
+             "📊 Fill columns with the most frequent value (Only for the categorical ones)",
+             "✏️ Fill manually with a custom value"], # Fill manually with a custom value
             index=0,
             key="cleaning_strategy_radio_clean" # Unique key for this radio button
         )
@@ -123,7 +131,7 @@ if select_operation == "Missing data":
         if col_select1.button("All columns", key="all_cols_btn_clean"): # Unique key
             st.session_state.all_cols_selected_state = True
             st.session_state.custom_cols_selected_list_state = [] # Clear custom selection
-            st.rerun() # Rerun to update UI based on new selection state
+            #st.rerun() # Rerun to update UI based on new selection state
 
         # Multiselect for "Custom Columns"
         current_custom_selection = col_select2.multiselect(
@@ -137,7 +145,7 @@ if select_operation == "Missing data":
     if not missing_df.empty and current_custom_selection != st.session_state.custom_cols_selected_list_state:
         st.session_state.custom_cols_selected_list_state = current_custom_selection
         st.session_state.all_cols_selected_state = False # Clear "All Columns" selection
-        st.rerun() # Rerun to update UI
+        #st.rerun() # Rerun to update UI
 
     # ------------------------------------------------------------------
 
@@ -176,7 +184,7 @@ if select_operation == "Missing data":
         strategy = st.selectbox("Select the filling way:", ["Mean", "Median", "Zero"], key="fill_strategy_select_clean_numeric") # Unique key
         
         
-           # --- Start of modification: Filter numeric columns to include only those with missing values ---
+            # --- Start of modification: Filter numeric columns to include only those with missing values ---
         numeric_cols = df.select_dtypes(include=["float64", "int64"]).columns
         numeric_cols_with_missing = numeric_cols[df[numeric_cols].isnull().any()].tolist()
         # --- End of modification ---
@@ -210,7 +218,7 @@ if select_operation == "Missing data":
                 st.success(f"✅ تم ملء القيم الرقمية المفقودة في **{', '.join(cols_to_fill)}** باستخدام `{strategy}`.") # Missing numeric values filled
                 st.dataframe(df)
 
-    # --- 5.3.  Fill the categorical columns with the most frequent value  ---
+    # --- 5.3.  Fill the categorical columns with the most frequent value    ---
     elif not missing_df.empty and cleaning_option == "📊 Fill columns with the most frequent value (Only for the categorical ones)":
         st.markdown("---")
         st.subheader("Fill missing values:") # Fill missing values
@@ -244,7 +252,7 @@ if select_operation == "Missing data":
                 st.success(f"✅ Missing values in the **{', '.join(cols_to_fill)}** columns, filled with the most frequent value.") # Missing numeric values filled
                 st.dataframe(df)
 
-                       
+                        
 
     # --- 5.4. Fill manually with a custom value ---
     elif not missing_df.empty and cleaning_option == "✏️ Fill manually with a custom value":
@@ -273,57 +281,324 @@ if select_operation == "Missing data":
                 st.success(f"✅ Missing values in the  **{', '.join(cols_to_fill)}** columns, filled with `{custom_fill_value}`.") # Missing values filled
                 st.dataframe(df)
 
-    # --- 5. Final Preview After Cleaning ---
-   # st.markdown("---")
-    #st.subheader("📊 معاينة بعد التنظيف:") # Preview After Cleaning
-    #st.dataframe(df.head(10))
 
 
-else:
+
+
+
+
+
+
+# --- Duplicated Data Handling ---
+elif select_operation == 'Duplicated data': # select_operation == "Duplicated data"
     # --- 7. Duplicated values ---
+ 
     count_of_duplicated = df.duplicated().sum()
-    
-    if count_of_duplicated < 1:
+    count_of_custom_duplicated = df.duplicated(subset=(df.columns.tolist())).sum()
+
+    if count_of_duplicated < 1 & count_of_custom_duplicated:
         st.success("🎉 No duplicated data found!") # No duplicated values detected!
     else:
-     
+        
         st.header(" Handle duplicated data")     
         st.subheader("♻️ Summary of duplicated data")
 
-        st.caption("This is based on all the rows, if you want to customize ")
 
         col1,col2 = st.columns(2)
-        all_rows = col1.button("All rows")
-        custome_rows = col2.multiselect("Custome rows",df.columns.tolist())
-
-        st.caption(f"This dataset has {count_of_duplicated} rows of duplicated values distributed as:")
-        if all_rows:
-            duplicated_df = df[df.duplicated]
-            duplicated_df
-        elif custome_rows:
-
-             duplicated_df = df[df.duplicated(subset=custome_rows)]
-             duplicated_df
-
-        #st.dataframe(duplicated_df)
+        all_rows = col1.button("All rows", key="duplicated_all_rows") # Added unique key
         
+        # Ensure custome_rows is initialized before use
+        if 'duplicated_custom_cols_selected_list' not in st.session_state:
+            st.session_state.duplicated_custom_cols_selected_list = []
+
+        custome_rows = col2.multiselect(
+            "Custom rows (select columns to consider for duplicates)",
+            df.columns.tolist(),
+            default=st.session_state.duplicated_custom_cols_selected_list,
+            key="duplicated_custom_rows_multiselect" # Added unique key
+        )
         
+        # Update session state for custom rows selection
+        if custome_rows != st.session_state.duplicated_custom_cols_selected_list:
+            st.session_state.duplicated_custom_cols_selected_list = custome_rows
+            #st.rerun()
 
+        sum_of_duplicated_display = 0
+        current_duplicated_df = pd.DataFrame()
+
+        if all_rows: 
+            sum_of_duplicated_display = df.duplicated().sum()
+            current_duplicated_df = df[df.duplicated()] # Show all duplicated rows for preview
+        elif custome_rows: 
+            sum_of_duplicated_display = df.duplicated(subset=custome_rows).sum()
+            current_duplicated_df = df[df.duplicated(subset=custome_rows)] # Show all duplicated rows for preview
+        else:
+            # Default state when neither "All rows" button is pressed nor custom rows are selected
+            sum_of_duplicated_display = df.duplicated().sum()
+            current_duplicated_df = df[df.duplicated()]
+            
+        st.caption(f"This dataset currently shows {sum_of_duplicated_display} duplicated values based on your selection.")
         
-       
+        if not current_duplicated_df.empty:
+            st.write("Preview of duplicated rows (before removal):")
+            st.dataframe(current_duplicated_df)
 
-        st.markdown("### 🛠️ How would you like to handle them?") # How would you like to handle them?
+            st.markdown("### 🛠️ How would you like to handle them?") # How would you like to handle them?
+        
+            col1_del, col2_del = st.columns(2) # Renamed to avoid conflict with previous col1, col2
 
+            delete_operation = col1_del.radio(
+                "Delete based on:", 
+                options=["All rows", "Custom rows (requires selection above)"],
+                key="duplicated_delete_operation_radio" # Added unique key
+            )
+            delete_options = col2_del.selectbox(
+                "Keep:", 
+                options=["First occurrence", "Last occurrence", "None (delete all duplicates)"],
+                key="duplicated_keep_option_select" # Added unique key
+            )
+
+            commit_delete = st.button("Commit delete", key="commit_delete_duplicates") # Added unique key
+
+            if commit_delete:
+                new_df = df.copy() # Create a copy to modify
+
+            subset_cols = None
+
+            if delete_operation == "Custom rows (requires selection above)":
+                if not st.session_state.duplicated_custom_cols_selected_list:
+                    st.warning("Please select custom columns above to apply 'Custom rows' deletion.")
+                    st.stop()
+                subset_cols = st.session_state.duplicated_custom_cols_selected_list
+
+            keep_strategy = 'first' # Default
+            if delete_options == "Last occurrence":
+                keep_strategy = 'last'
+            elif delete_options == "None (delete all duplicates)":
+                keep_strategy = False # This keeps no duplicates
+
+            # Apply drop_duplicates
+            if new_df is not None:
+                rows_before = new_df.shape[0]
+                new_df = new_df.drop_duplicates(subset=subset_cols, keep=keep_strategy)
+                rows_after = new_df.shape[0]
+            
+                removed_count = rows_before - rows_after
+
+            # --- Crucial: Update the DataFrame in session state ---
+                st.session_state.df = new_df.copy() # Save the modified DataFrame back to session state
+                df = st.session_state.df # Update the local df variable to reflect changes
+
+                st.success(f"✅ Successfully removed **{removed_count}** duplicated rows.")
+                st.write(f"🧮 New dataset shape: {df.shape}")
+                st.dataframe(df.head()) # Show a preview of the cleaned DataFrame
+           # st.rerun() # Rerun to refresh the UI and the duplicated count
+        else:
+            st.info("No duplicated rows to display based on current selection.")
+
+
+
+
+
+
+
+# --- Text Normalization Handling ---
+elif select_operation == "Text normalization":
+    st.header("Normalization text columns") 
+    text_columns_df = df.select_dtypes(include=['object', "category"]) # Get the DataFrame with only text/categorical columns
+
+    if len(text_columns_df.columns) > 0:
+        st.subheader("🔤 Summary of text columns")
+        st.caption(f"This dataset contains {len(text_columns_df.columns)} text columns.") 
+        st.dataframe(text_columns_df.head()) # Display a preview of text columns
+
+        st.markdown("### 🛠️ How would you like to normalize them?")
+
+        selected_text_cols = st.multiselect("Select columns to normalize:", text_columns_df.columns.tolist(), key="text_norm_multiselect")
+
+        selected_operation = st.selectbox("How do you want to normalize? ", options=["Lower", "Upper", "Capitalize", "Remove Whitespaces","Remove the strange characters (#,%,etc)"], key="text_norm_operation_select")
+
+        commit_normalize = st.button("Commit normalize", key="commit_normalize_text")
+
+        if commit_normalize:
+         
+            new_df = df.copy() 
+
+            if not selected_text_cols:
+                st.warning("Please select at least one column to normalize.")
+            else:
+                for col in selected_text_cols:
+                    if col in new_df.columns: # Ensure column exists                 
+                            if selected_operation == "Lower":
+                                new_df[col] = new_df[col].str.lower()
+                            elif selected_operation == "Upper":
+                                new_df[col] = new_df[col].str.upper()
+                            elif selected_operation == "Capitalize": # Added Capitalize logic
+                                new_df[col] = new_df[col].str.capitalize()
+                            elif selected_operation == "Remove Whitespaces": # Added Remove Whitespaces logic
+                                new_df[col] = new_df[col].str.strip() # .strip() removes leading/trailing whitespace
+                            elif selected_operation == "Remove the strange characters (#,%,etc)":
+                                new_df[col] =  new_df[col].str.replace(r"[^\w\s]", "", regex=True) 
+                       
+                st.success("✅ Text columns normalized successfully!")
+
+                # --- Crucial: Update the DataFrame in session state ---
+                st.session_state.df = new_df.copy() # Save the modified DataFrame back to session state
+                # No need to update local df variable here as st.rerun() will reload it
+                
+                st.dataframe(st.session_state.df.head()) # Display preview of normalized data
+                #st.rerun() # Rerun to refresh the UI and show updated DataFrame
+        
+    else:
+        st.info("There are no text columns in this dataset.")
+
+elif select_operation == "Edit records": # NEW SECTION FOR EDIT RECORDS
+    st.header("Edit Records")
+    st.subheader("📝 Edit your dataset directly")
+
+    st.info("You can edit cells, add new rows, or delete existing rows directly in the table below.")
+
+    # Use st.data_editor to allow direct editing
+    # The returned DataFrame `edited_df` contains the changes
+    # Use st.session_state.df directly here so data editor works on the current state
+    edited_df = st.data_editor(st.session_state.df, num_rows="dynamic", key="data_editor_clean")
+    commit_edit = st.button("Commit Edits")
+    # --- FIX for st.data_editor: Try to convert numerical columns back to Int64Dtype ---
+    # This block runs after data_editor returns, on every rerun.
+    temp_df_for_editor_conversion = edited_df.copy() # Work on a copy of the edited_df
+
+    # Iterate through columns to attempt conversion
+    for col in temp_df_for_editor_conversion.columns:
+        # Check if the column currently has a numeric type (float or int)
+        if pd.api.types.is_numeric_dtype(temp_df_for_editor_conversion[col]):
+            # Try to convert to Int64Dtype (nullable integer)
+            try:
+                # Convert to numeric first, coercing errors to NaN
+                # Then convert to nullable integer type
+                temp_df_for_editor_conversion[col] = pd.to_numeric(temp_df_for_editor_conversion[col], errors='coerce').astype(pd.Int64Dtype())
+            except Exception:
+                # If conversion to Int64Dtype fails (e.g., contains non-integer floats),
+                # keep it as its current numeric type (likely float)
+                pass # Do nothing, keep original numeric type (float or int)
+
+    # Check if the processed DataFrame from data_editor is different from the current session state df
+    # This detects changes made directly in the data editor.
+    if not temp_df_for_editor_conversion.equals(st.session_state.df) and commit_edit:
+        st.session_state.df = temp_df_for_editor_conversion.copy() # Save the edited DataFrame back to session state
+        st.success("✅ Changes from data editor saved successfully!")
+        st.dataframe(st.session_state.df.head()) # Show updated DataFrame preview
+        #st.rerun() # Rerun to reflect changes immediately across the app
+
+    
+    col1,col2 = st.columns(2)
+    remove_or_replace = col2.selectbox("Replace or Remove?",options=["Replace","Remove"])
+    col1.subheader(f"Find and {remove_or_replace}")
+
+    if remove_or_replace == "Replace":
+
+        col3,col4,col5 = st.columns(3)
+        old_value = col3.text_input("Old value to replace:", key="old_value_input")
+        new_value = col4.text_input("New value:", key="new_value_input")
+        to_column = col5.selectbox("Apply to column:", options=df.columns.tolist(), key="replace_column_select")
+
+    else:
+        col6,col7 = st.columns(2)
+        remove_value = col6.text_input("Enter the value which you want to delete base on it", key="remove_value_input")
+        to_column = col7.selectbox("In the column:", options=df.columns.tolist(), key="replace_column_select")
+
+
+    commit_changes_button = st.button("Apply your chnges", key="commit_changes_button")
+    if commit_changes_button:
+        # --- FIX: Ensure new_df is defined within this block ---
+        # We need a copy to work on, then save it back to session state
+        temp_df_for_changes = df.copy() # Use a temporary name to avoid confusion
+
+        if remove_or_replace == "Replace":
+            if not to_column:
+                st.warning("Please select a column to apply the changes.")
+            elif not old_value:
+                st.warning("Please enter the old value to replace.")
+            elif not new_value:
+                st.warning("Please enter the new value to replace.")
+            else:
+            # Determine column type for appropriate replacement
+                current_col_dtype = temp_df_for_changes[to_column].dtype
+
+                replaced_count = 0
+                
+                # --- FIX for Find and Replace: Handle numerical vs. string replacement ---
+                if pd.api.types.is_numeric_dtype(current_col_dtype):
+                    try:
+                        # Attempt numerical replacement
+                        old_val_num = pd.to_numeric(old_value)
+                        new_val_num = pd.to_numeric(new_value)
+                        
+                        initial_count = (temp_df_for_changes[to_column] == old_val_num).sum()
+                        temp_df_for_changes[to_column].replace(old_val_num, new_val_num, inplace=True)
+                        final_count = (temp_df_for_changes[to_column] == old_val_num).sum()
+                        replaced_count = initial_count - final_count
+
+                        # After numerical replacement, try to convert to nullable integer if applicable
+                        try:
+                            temp_df_for_changes[to_column] = temp_df_for_changes[to_column].astype(pd.Int64Dtype())
+                        except Exception:
+                            # If it can't be Int64 (e.g., contains floats), keep it as float
+                            pass
+
+                    except ValueError:
+                        st.warning(f"⚠️ Cannot replace '{old_value}' with '{new_value}' numerically in column '{to_column}'. Values are not purely numeric.")
+                        st.stop() # Stop execution if numerical conversion fails
+                else: # Assume it's a string/object/categorical column
+                    # Ensure values are string before string replacement
+                    initial_count = (temp_df_for_changes[to_column].astype(str) == str(old_value)).sum()
+                    temp_df_for_changes[to_column] = temp_df_for_changes[to_column].astype(str).replace(str(old_value), str(new_value))
+                    final_count = (temp_df_for_changes[to_column].astype(str) == str(old_value)).sum()
+                    replaced_count = initial_count - final_count
+
+                st.session_state.df = temp_df_for_changes.copy() # Save the modified DataFrame back to session state
+                
+                st.success(f"✅ Successfully replaced '{old_value}' with '{new_value}' in column '{to_column}'. (Affected {replaced_count} cells)")
+                st.dataframe(st.session_state.df.head()) # Show updated DataFrame preview
+                #st.rerun() # Rerun to reflect changes immediately
+        else:
+            temp_df_for_removal = df.copy() # Work on a copy
+
+            # --- FIX: Handle data type consistency for comparison ---
+            # Convert remove_value to the column's dtype if possible for accurate comparison
+            try:
+                # Try to convert remove_value to the column's original dtype
+                if pd.api.types.is_numeric_dtype(temp_df_for_removal[to_column].dtype):
+                    converted_remove_value = pd.to_numeric(remove_value)
+                else:
+                    # For non-numeric, compare as string
+                    converted_remove_value = str(remove_value)
+                    temp_df_for_removal[to_column] = temp_df_for_removal[to_column].astype(str) # Ensure column is string for comparison
+            except ValueError:
+                st.error(f"❌ Cannot convert '{remove_value}' to match the data type of column '{to_column}'.")
+                st.stop()
+
+            # Find indices of rows where the value matches
+            # Use .loc for explicit indexing to avoid SettingWithCopyWarning
+            rows_to_drop_indices = temp_df_for_removal.index[temp_df_for_removal[to_column] == converted_remove_value].tolist()
+            
+            if not rows_to_drop_indices:
+                st.info(f"ℹ️ No rows found with value '{remove_value}' in column '{to_column}'.")
+            else:
+                original_row_count = temp_df_for_removal.shape[0]
+                temp_df_for_removal.drop(rows_to_drop_indices, inplace=True)
+                removed_count = original_row_count - temp_df_for_removal.shape[0]
+
+                st.session_state.df = temp_df_for_removal.copy() # Save the modified DataFrame
+                
+                st.success(f"✅ Successfully removed **{removed_count}** rows where '{remove_value}' was found in column '{to_column}'.")
+                st.dataframe(st.session_state.df.head()) 
 
 # --- 6. Save Cleaned Data to Session State ---
 st.markdown("---")
-save_changes = st.button("💾 Save you changes?", key="save_changes_clean")
-st.caption("if you wolud like to go ahead through other sections")
-if save_changes: # Unique key
+if st.button("💾 Save you changes?", key="save_changes_clean"): # Unique key
     st.session_state.cleaned_data = df.copy() # Save a copy of the modified DataFrame
     st.info("Your changes have been saved!") # Your changes have been saved!
     st.dataframe(st.session_state.cleaned_data.head()) # Display for confirmation
 
-#to_download = convert_for_download(df)
-st.download_button(label = "⬇️ Download your modified data (as .csv)", data= df.to_csv(), file_name="modified_data.csv")
 
+st.download_button(label = "⬇️ Download your modified data (as .csv)", data= df.head().to_csv(index=False), file_name="modified_data.csv")
